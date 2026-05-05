@@ -1,0 +1,6 @@
+{
+    "AppId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "Organization": "example@onmicrosoft.com",
+    "CertificateThumbprint": "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
+    "TenantId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+}

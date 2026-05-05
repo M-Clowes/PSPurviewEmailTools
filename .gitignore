@@ -1,0 +1,14 @@
+# --- Values ---
+**/app_details.json
+**/*.cer
+**/*.pfx
+
+# --- Test files ---
+*.txt
+*.csv
+Get-Email.ps1
+
+# --- Editor / OS ---
+.vscode/
+.DS_Store
+Thumbs.db
