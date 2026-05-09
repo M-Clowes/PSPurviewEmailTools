@@ -34,7 +34,7 @@ function New-PurviewEmailSearch {
     # region param checks
     if (-not ($SenderAddress -and $RecipientAddresses -and $SubjectBody)) {
         throw [System.ArgumentException]::new(
-            "At least one of SenderAddress, RecipientAddress or SubjectBody must be defined."
+            "At least one of SenderAddress, RecipientAddresses or SubjectBody must be defined."
         )
     }
 
@@ -57,13 +57,6 @@ function New-PurviewEmailSearch {
         throw [System.ArgumentException]::new(
             "StartDate cannot exceed EndDate.",
             "StartDate"
-        )
-    }
-
-    if ($PassThru -and -not $Search) {
-        throw [System.ArgumentException]::new(
-            "PassThru cannot be used without executing the search using '-Search'.",
-            "PassThru"
         )
     }
     # endregion
@@ -103,9 +96,9 @@ function New-PurviewEmailSearch {
     # endregion
 
     # region create search
-    [string]$srchName = "New-PurviewEmailSearch_" + [guid]::NewGuid().ToString()
+    $srchName = "New-PurviewEmailSearch_" + [guid]::NewGuid().ToString()
     try {
-        New-ComplianceSearch `
+        $srch = New-ComplianceSearch `
             -Name $srchName `
             -ExchangeLocation All `
             -ContentMatchQuery $qryBody `
@@ -121,7 +114,7 @@ function New-PurviewEmailSearch {
 
     # region search
     if ($Search) {
-        $srch = Run-PurviewEmailSearch
+        $srch = Run-PurviewEmailSearch -Search $srch
     }
     # endregion
 
@@ -130,7 +123,7 @@ function New-PurviewEmailSearch {
         return [PSCustomObject]@{
             SearchName = $srchName
             Status     = $srch.Status
-            Succeeded  = $true
+            Succeeded  = $($srch.Status -eq 'Completed')
         }
     }
     else {
