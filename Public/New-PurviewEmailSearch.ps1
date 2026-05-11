@@ -45,14 +45,6 @@ function New-PurviewEmailSearch {
         )
     }
 
-    if ($StartDate) {
-        $StartDate = $StartDate.AddDays(-1) # Add inclusive range
-    }
-    if ($EndDate) {
-        if ($EndDate.Date -ne (Get-Date).Date) {
-            $EndDate = $EndDate.AddDays(1) # Add inclusive range
-        }
-    }
     if (($StartDate -and $EndDate) -and ($StartDate -ge $EndDate)) {
         throw [System.ArgumentException]::new(
             "StartDate cannot exceed EndDate.",
@@ -61,7 +53,7 @@ function New-PurviewEmailSearch {
     }
     # endregion
 
-    Ensure-IPPSSession
+    Ensure-IPPSSession # Creates ExOl- and IPPS-Session if not already present + checks relevant perms
 
     # region KQL
     $qryParts = [System.Collections.Generic.List[string]]::new()
@@ -81,24 +73,24 @@ function New-PurviewEmailSearch {
     }
 
     if ($SubjectBody) {
-        $qryParts.Add("SubjectTitle=`"$SubjectBody`"")
+        $qryParts.Add("(SubjectTitle=`"$SubjectBody`")")
     }
 
     if ($StartDate) {
-        $qryParts.Add("Date>$($StartDate.Date)")
+        $qryParts.Add("(Date>=$($StartDate.ToString("yyyy-MM-dd")))")
     }
 
     if ($EndDate) {
-        $qryParts.Add("Date<$($EndDate.Date)")
+        $qryParts.Add("(Date<=$($EndDate.ToString("yyyy-MM-dd")))")
     }
 
     $qryBody = $qryParts -join " AND "
     # endregion
 
     # region create search
-    $srchName = "New-PurviewEmailSearch_" + [guid]::NewGuid().ToString()
+    $srchName = "PowerShellPurviewEmailSearch_" + [guid]::NewGuid().ToString()
     try {
-        $srch = New-ComplianceSearch `
+        New-ComplianceSearch `
             -Name $srchName `
             -ExchangeLocation All `
             -ContentMatchQuery $qryBody `
@@ -114,7 +106,7 @@ function New-PurviewEmailSearch {
 
     # region search
     if ($Search) {
-        $srch = Run-PurviewEmailSearch -Search $srch
+        $srch = Run-PurviewEmailSearch -SearchName $srchName
     }
     # endregion
 
