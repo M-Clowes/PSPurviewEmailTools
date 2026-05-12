@@ -1,5 +1,5 @@
 @{
-    RootModule        = 'PurviewEmailTools.psm1'
+    RootModule        = 'PSPurviewEmailTools.psm1'
     ModuleVersion     = '1.0.0'
     PowerShellVersion = '7.0'
 
@@ -29,7 +29,7 @@
                 'ExchangeOnline'
             )
 
-            ProjectUri = 'https://github.com/M-Clowes/PSEmailTools'
+            ProjectUri = 'https://github.com/M-Clowes/PSPurviewEmailTools'
         }
     }
 }

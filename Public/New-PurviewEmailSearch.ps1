@@ -140,6 +140,7 @@ function New-PurviewEmailSearch {
                     "StartDate"
                 )
             }
+            $true
         })]
         [datetime]$StartDate,
 
@@ -152,6 +153,7 @@ function New-PurviewEmailSearch {
                     "EndDate"
                 )
             }
+            $true
         })]
         [datetime]$EndDate,
 

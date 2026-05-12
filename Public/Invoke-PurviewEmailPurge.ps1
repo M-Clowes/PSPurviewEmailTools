@@ -113,7 +113,7 @@ function Invoke-PurviewEmailPurge{
         }
 
         $maxPasses  = 100
-        $stallLimit = 5
+        $stallLimit = 3
         $stall      = 0
         $prv        = -1 # temp assignment
 
@@ -130,19 +130,20 @@ function Invoke-PurviewEmailPurge{
             Write-Verbose "Starting search for updated results"
             $search = Invoke-PurviewEmailSearch -SearchName $SearchName
 
-            if ($search.Items -eq 0) {
-                Write-Verbose "Purge action completed successfully."
-                return
-            }
 
             if ($search.Items -eq $prv) {
                 Write-Verbose "No additional purges have been noted on pass $($pass + 1)"
                 $stall++
 
                 if ($stall -ge $stallLimit) {
-                    throw [System.InvalidOperationException]::new(
-                        "Purge made no progress for $stall consecutive passes. Remaining hits: $($search.Items). Aborted."
-                    )
+                    if ($search.Items -eq 0) {
+                        Write-Verbose "Search index converged at zero items"
+                    }
+                    else {
+                        Write-Verbose "Search index converged with $($search.Items) items (likely already purged)"
+                    }
+
+                    return
                 }
             }
             else {

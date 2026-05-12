@@ -31,7 +31,7 @@ function Wait-PurviewComplianceSearchAction {
     $spinRate  = 100 # milliseconds
     $warn      = $false
 
-    while ($action.Status -notin @('Completed', 'Failed')) {
+    do {
         $now = Get-Date
         $elapsed = $now - $startTime
         if ($warn) {
@@ -59,9 +59,9 @@ function Wait-PurviewComplianceSearchAction {
 
         $idx++
         Start-Sleep -Milliseconds $spinRate
-    }
+    } while ($action.Status -notin @('Completed', 'Failed'))
 
-    Write-Host "`r[$($now.ToString("HH:mm:ss"))] $Message " -NoNewline
+    Write-Host "`r[$($now.ToString("HH:mm:ss"))] $Message " -NoNewLine
     if ($warn) {
         Write-Host "($([int]$elapsed.TotalMinutes)min) " -NoNewLine
     }

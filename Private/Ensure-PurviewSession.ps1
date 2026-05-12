@@ -1,4 +1,4 @@
-function Ensure-IPPSSession {
+function Ensure-PurviewSession {
     [CmdletBinding()]
     param()
 
