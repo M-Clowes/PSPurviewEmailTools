@@ -1,2 +1,14 @@
-Get-ChildItem $PSScriptRoot\Public\*.ps1   | ForEach-Object { . $_ }
-Get-ChildItem $PSScriptRoot\Private\*.ps1  | ForEach-Object { . $_ }
+$public  = Join-Path $PSScriptRoot 'Public'
+$private = Join-Path $PSScriptRoot 'Private'
+
+if (Test-Path $private) {
+    Get-ChildItem $private\*.ps1 -ErrorAction Stop |
+        Sort-Object Name |
+        ForEach-Object { . $_ }
+}
+
+if (Test-Path $public) {
+    Get-ChildItem $public\*.ps1 -ErrorAction Stop |
+        Sort-Object Name |
+        ForEach-Object { . $_ }
+}

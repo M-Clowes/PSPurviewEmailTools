@@ -28,11 +28,11 @@ function Ensure-IPPSSession {
 
     try {
         Get-ComplianceSearch -ResultSize 1 -ErrorAction Stop | Out-Null
-        Write-Verbose "Pre-exisiting connection to Purview eDiscovery service found"
+        Write-Verbose "Pre-existing connection to Purview eDiscovery service found"
     }
     catch {
         Write-Warning "Connection to Purview eDiscovery service is required to continue. Expect a prompt."
-        Connect-IPPSSession -ShowBanner:$false -EnableSearchOnlySession
+        Connect-IPPSSession -ShowBanner:$false -EnableSearchOnlySession -ErrorAction Stop
 
         try {
             Get-ComplianceSearch -ResultSize 1 -ErrorAction Stop | Out-Null

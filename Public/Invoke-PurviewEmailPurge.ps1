@@ -1,8 +1,60 @@
 function Invoke-PurviewEmailPurge{
+    <#
+    .SYNOPSIS
+    Executes a Purview Compliance Search purge action and waits for completion.
+
+    .DESCRIPTION
+    Invoke-PurviewEmailPurge performs one or more Purview eDiscovery purge actions
+    against an existing, completed Compliance Search. The function waits for each
+    purge action to finish, re-runs the search to verify progress, and repeats until
+    no matching items remain or progress stalls.
+
+    This cmdlet enforces safe execution by requiring the Compliance Search to be in
+    a Completed state and by prompting for confirmation before performing purge operations.
+
+    SoftDelete is used by default. Use -HardDelete with caution, as it permanently
+    removes items and cannot be undone.
+
+    .PARAMETER SearchName
+    The name of an existing Purview Compliance Search to purge.
+    The search must exist and must have completed successfully before this cmdlet
+    is executed.
+
+    .PARAMETER HardDelete
+    Specifies that matching items should be permanently deleted.
+    If not specified, items are soft-deleted and moved to the Recoverable Items folder.
+    HardDelete operations cannot be reversed.
+
+    .INPUTS
+    System.String
+    Microsoft.Exchange.Management.ComplianceSearch
+
+    .OUTPUTS
+    Microsoft.Exchange.Management.ComplianceSearch
+    Returns the final Compliance Search object after purge completion.
+
+    .EXAMPLE
+    Invoke-PurviewEMailPurge -SearchName IncidentSearch001
+
+    Performs a soft-delete purge of all items returned by the compliance search
+    named IncidentSearch001.
+    .EXAMPLE
+    Get-ComplianceSearch -Identity IncidentSearch002 | Invoke-PurviewEmailPurge -HardDelete
+
+    Permanently deletes all items returned by the compliance search
+    provided via the pipeline after user confirmation.
+
+    .NOTES
+    This cmdlet assumes access to the ExchangeOnlineManagement module.
+    If not present, an error will halt the function.
+
+    Purge actions run asynchronously and may take a significant amount of time,
+    especially when many mailboxes or large numbers of items are involved.
+    #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [Parameter(Mandatory, Position = 0)]
-        [Alias("Name")]
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [Alias("Name", "Identity")]
         [ValidateNotNullOrWhiteSpace()]
         [string]$SearchName,
 
@@ -10,128 +62,101 @@ function Invoke-PurviewEmailPurge{
         [switch]$HardDelete
     )
 
-    if ($HardDelete) {
-        $purgeType = 'HardDelete'
-    }
-    else {
-        $purgeType = 'SoftDelete'
+    begin {
+        Ensure-PurviewSession
     }
 
-    Ensure-IPPSSession # Creates ExOl- and IPPS-Session if not already present + checks relevant perms
-
-    # region find search
-    try {
-        $search = Get-ComplianceSearch -Identity $SearchName -ErrorAction Stop
-        Write-Verbose "Search instance found"
-    }
-    catch {
-        throw [System.InvalidOperationException]::new(
-            "Compliance search $SearchName could not be found.",
-            $_.Exception
-        )
-    }
-
-    if ($search.Status -ne 'Completed') {
-        throw [System.InvalidOperationException]::new(
-            "Compliance search $SearchName is in state '$($search.Status)' and cannot be purged until it successfully completes."
-        )
-    }
-
-    if ($search.Items -eq 0) {
-        Write-Verbose "Compliance search $SearchName returned no results"
-        return
-    }
-    # endregion
-
-    # region purge
-    if (-not ($PSCmdlet.ShouldProcess(
-        "Compliance search $SearchName",
-        "Create $purgeType purge action"
-        ))
-    ) {
-        Write-Warning "Operation declined by user."
-        return
-    }
-
-    $maxPasses  = 100
-    $stallLimit = 5
-    $stall      = 0
-    $frames     = '/', '-', '\', '|'
-    $spinRate   = 100 # milliseconds
-    $pollRate   = [TimeSpan]::FromSeconds(15)
-    $timeout    = [TimeSpan]::FromMinutes(30)
-    $prv        = -1 # temp assignment
-
-    for ($pass = 0; $pass -lt $maxPasses; $pass++) {
-        $lastPoll  = Get-Date
-        $startTime = Get-Date
-        $warn      = $false
-        $idx       = 0
-
-        $action = New-ComplianceSearchAction `
-            -SearchName $SearchName `
-            -Purge `
-            -PurgeType $purgeType `
-            -Confirm:$false `
-            -ErrorAction Stop
-        $action = Get-ComplianceSearchAction -Identity $action.Identity
-
-        while ($action.Status -notin @('Completed', 'Failed')) {
-            $now = Get-Date
-            $elapsed = $now - $startTime
-            if ($warn) {
-                $msg = "`r[$($now.ToString("HH:mm:ss"))] Purging... ($([int]$elapsed.TotalMinutes)) $($frames[$idx % $frames.Count])"
+    process {
+        if ($HardDelete) {
+                $purgeType = 'HardDelete'
             }
-            else {
-                $msg = "`r[$($now.ToString("HH:mm:ss"))] Purging... $($frames[$idx % $frames.Count])"
-            }
+        else {
+            $purgeType = 'SoftDelete'
+        }
+        
 
-            if (($now - $lastPoll) -ge $pollRate) {
-                $action = Get-ComplianceSearchAction -Identity $action.Identity
-                $lastPoll = $now
-            }
-
-            if (-not $warn -and ($elapsed -ge [TimeSpan]::FromMinutes(1))) {
-                Write-Host "`rWe apologise for the delay. Each purge action may take up to 30 minutes."
-                $warn = $true
-            }
-
-            if ($elapsed -ge $timeout) {
-                throw [System.TimeoutException]::new(
-                    "Operation timed out after $([int]$elapsed.TotalMinutes) minutes."
-                )
-            }
-
-            Write-Host $msg -NoNewLine
-            $idx++
-            Start-Sleep -Milliseconds $spinRate
+        # region find search
+        try {
+            Write-Verbose "Searching for compliance search results"
+            $search = Get-ComplianceSearch -Identity $SearchName -ErrorAction Stop
+        }
+        catch {
+            throw [System.InvalidOperationException]::new(
+                "Compliance search $SearchName could not be found.",
+                $_.Exception
+            )
         }
 
-        $search = Run-PurviewEmailSearch -SearchName $SearchName
+        if ($search.Status -ne 'Completed') {
+            throw [System.InvalidOperationException]::new(
+                "Compliance search $SearchName is in state '$($search.Status)' and cannot be purged until it successfully completes."
+            )
+        }
 
         if ($search.Items -eq 0) {
-            Write-Verbose "Purge action completed successfully."
+            Write-Verbose "Compliance search $SearchName returned no results"
+            return
+        }
+        # endregion
+
+        # region purge
+        if ($purgeType -eq 'HardDelete') {
+            Write-Warning "HardDelete permanently removes items and cannot be undone."
+        }
+        if (-not ($PSCmdlet.ShouldProcess(
+            "Compliance search $SearchName",
+            "Create $purgeType purge action"
+            ))
+        ) {
+            Write-Warning "Operation declined by user."
             return
         }
 
-        if ($search.Items -eq $prv) {
+        $maxPasses  = 100
+        $stallLimit = 5
+        $stall      = 0
+        $prv        = -1 # temp assignment
+
+        for ($pass = 0; $pass -lt $maxPasses; $pass++) {
+            Write-Verbose "Starting purge pass $($pass + 1) of $maxPasses"
+            $action = New-ComplianceSearchAction `
+                -SearchName $SearchName `
+                -Purge `
+                -PurgeType $purgeType `
+                -Confirm:$false `
+                -ErrorAction Stop
+            Wait-PurviewComplianceSearchAction -ActionIdentity $action.Identity
+
+            Write-Verbose "Starting search for updated results"
+            $search = Invoke-PurviewEmailSearch -SearchName $SearchName
+
+            if ($search.Items -eq 0) {
+                Write-Verbose "Purge action completed successfully."
+                return
+            }
+
+            if ($search.Items -eq $prv) {
+                Write-Verbose "No additional purges have been noted on pass $($pass + 1)"
                 $stall++
 
-            if ($stall -ge $stallLimit) {
-                throw [System.InvalidOperationException]::new(
-                    "Purge made no progress for $stall consecutive passes. Remaining hits: $($search.Items). Aborted."
-                )
+                if ($stall -ge $stallLimit) {
+                    throw [System.InvalidOperationException]::new(
+                        "Purge made no progress for $stall consecutive passes. Remaining hits: $($search.Items). Aborted."
+                    )
+                }
             }
-        }
-        else {
-            $stall = 0
+            else {
+                $stall = 0
+            }
+
+            $prv = $search.Items
         }
 
-        $prv = $search.Items
+        throw [System.TimeoutException]::new(
+            "The operation timed out after $maxPasses attempts."
+        )
+        # endregion
+
+        return $search
     }
-
-    throw [System.TimeoutException]::new(
-        "The operation timed out after $maxPasses attempts."
-    )
-    # endregion
 }
