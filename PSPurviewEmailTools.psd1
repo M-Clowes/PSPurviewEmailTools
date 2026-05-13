@@ -29,7 +29,7 @@
                 'ExchangeOnline'
             )
 
-            ProjectUri = 'https://github.com/M-Clowes/PSPurviewEmailTools'
+            ProjectUri = 'https://github.com/M-Clowes/PSEmailTools'
         }
     }
 }

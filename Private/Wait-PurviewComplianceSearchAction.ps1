@@ -46,7 +46,7 @@ function Wait-PurviewComplianceSearchAction {
             $lastPoll = $now
         }
 
-        if (-not $warn -and ($elapsed -ge [TimeSpan]::FromMinutes(1))) {
+        if (-not $warn -and ($elapsed -ge [TimeSpan]::FromMinutes(2))) {
             Write-Host "`rWe apologise for the delay. Each purge action may take up to 60 minutes."
             $warn = $true
         }

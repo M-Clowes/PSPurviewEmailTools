@@ -46,7 +46,7 @@ function Wait-PurviewComplianceSearch {
             $lastPoll = $now
         }
 
-        if (-not $warn -and ($elapsed -ge [TimeSpan]::FromMinutes(1))) {
+        if (-not $warn -and ($elapsed -ge [TimeSpan]::FromMinutes(2))) {
             Write-Host "`rWe apologise for the delay. Purview eDiscovery searches may take up to 30 minutes depending on scope."
             $warn = $true
         }

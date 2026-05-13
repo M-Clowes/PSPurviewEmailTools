@@ -39,6 +39,10 @@ function New-PurviewEmailSearch {
     from the specified day.
     This value cannot be in the future.
 
+    .PARAMETER SearchName
+    Specifies the identity given to the Compliance Search when it is created.
+    By default, the name is in the format "PowerShellPurviewEmailSearch_[guid]".
+
     .PARAMETER SearchAllMailboxes
     Expands the search scope to all mailboxes, even when recipient filters are specified.
     Use with caution.
@@ -158,6 +162,11 @@ function New-PurviewEmailSearch {
         [datetime]$EndDate,
 
         [Parameter()]
+        [Alias("Name", "Identity")]
+        [ValidateNotNullOrWhiteSpace()]
+        [string]$SearchName,
+
+        [Parameter()]
         [switch]$SearchAllMailboxes,
 
         [Parameter()]
@@ -250,7 +259,12 @@ function New-PurviewEmailSearch {
     # endregion
 
     # region create search
-    $srchName = "PowerShellPurviewEmailSearch_" + [guid]::NewGuid().ToString()
+    if ($SearchName) {
+        $srchName = $SearchName
+    }
+    else {
+        $srchName = "PowerShellPurviewEmailSearch_" + [guid]::NewGuid().ToString()
+    }
     try {
         Write-Verbose "Attempting to create compliance search: $srchName"
         New-ComplianceSearch `
